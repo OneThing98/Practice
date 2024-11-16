@@ -11,7 +11,17 @@ import (
 func main() {
 	fsm := NewSimpleFSM()
 
-	fmt.Println(fsm.Apply("SET foo bar"))
+	fsm.Apply("SET foo bar")
+	fsm.Apply("SET hello world")
+
+	//create and persist a snapshot
+	snapshot, _ := fsm.Snapshot()
+	snapshot.Persist("snapshot.json")
+
+	fsmNew := NewSimpleFSM()
+	fsmNew.Restore("snapshot.json")
+	fmt.Println(fsm.Apply("GET foo"))
+	fmt.Println(fsm.Apply("GET hello"))
 }
 
 // SImple FSM represents a finite state machine that stores simple key value pairs
@@ -48,7 +58,7 @@ func (fsm *SimpleFSM) Apply(command string) interface{} {
 	}
 }
 
-// Snapshot() type creates a snapshot of the FSM state
+// Snapshot creates a snapshot of the fsm state
 func (fsm *SimpleFSM) Snapshot() (*Snapshot, error) {
 	return &Snapshot{state: fsm.state}, nil
 }
@@ -61,4 +71,14 @@ func (snap *Snapshot) Persist(filepath string) error {
 	}
 	defer file.Close()
 	return json.NewEncoder(file).Encode(snap.state)
+}
+
+// Restore loads the FSM state from a snapshot file
+func (fsm *SimpleFSM) Restore(filePath string) error {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	return json.NewDecoder(file).Decode(&fsm.state)
 }
